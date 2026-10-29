@@ -10,7 +10,12 @@ public static class CatalogEndpoints
     public record CourseSummary(Guid Id, string Slug, string Title, string? Summary, string? CoverUrl, bool IsFree, string? Category);
     public record LessonOutline(Guid Id, string Slug, string Title, string Kind, int? DurationSeconds, bool IsPreview, bool Locked);
     public record ModuleOutline(Guid? Id, string Title, IReadOnlyList<LessonOutline> Lessons);
-    public record CourseDetail(CourseSummary Course, string? Description, bool HasAccess, IReadOnlyList<ModuleOutline> Modules);
+    public record QuizOutline(Guid Id, string Title, Guid? LessonId, int QuestionCount, bool IsPreview, bool Locked);
+    public record CourseDetail(
+        CourseSummary Course, string? Description, bool HasAccess, IReadOnlyList<ModuleOutline> Modules,
+        IReadOnlyList<QuizOutline> Quizzes, IReadOnlyList<Guid> CompletedLessonIds, PriceInfo? Price);
+    /// <summary>The course's own price; <see cref="PriceMinor"/> already includes any running promotion.</summary>
+    public record PriceInfo(Guid ProductId, long PriceMinor, long RegularMinor, string Currency, int? AccessDays);
     public record LessonContentResponse(Guid LessonId, string Title, string? Body, string? VideoRef);
 
     public static void MapCatalogEndpoints(this IEndpointRouteBuilder app)
@@ -29,7 +34,7 @@ public static class CatalogEndpoints
                 .ToListAsync());
 
         // Syllabus is public for published courses; each lesson says whether the viewer can open it.
-        g.MapGet("/courses/{slug}", async (string slug, AppDbContext db, ICurrentUser user, AccessService access) =>
+        g.MapGet("/courses/{slug}", async (string slug, AppDbContext db, ICurrentUser user, AccessService access, TimeProvider clock) =>
         {
             var course = await db.Courses.AsNoTracking().Include(c => c.Category)
                 .FirstOrDefaultAsync(c => c.Slug == slug && (c.Status == PublishStatus.Published || user.IsStaff));
@@ -52,9 +57,26 @@ public static class CatalogEndpoints
             var loose = lessons.Where(l => l.ModuleId is null || modules.All(m => m.Id != l.ModuleId)).Select(Outline).ToList();
             if (loose.Count > 0) outline.Insert(0, new ModuleOutline(null, "Lessons", loose));
 
+            var quizzes = await db.Quizzes.AsNoTracking()
+                .Where(q => q.CourseId == course.Id && (q.Status == PublishStatus.Published || user.IsStaff))
+                .OrderBy(q => q.CreatedAt)
+                .Select(q => new QuizOutline(q.Id, q.Title, q.LessonId,
+                    q.Questions.Count(x => x.ReviewStatus == QuestionReviewStatus.Approved), q.IsPreview, !(hasAccess || q.IsPreview)))
+                .ToListAsync();
+            var lessonIds = lessons.Select(l => l.Id).ToList();
+            var completed = user.Id is { } uid
+                ? await db.LessonProgress.Where(p => p.UserId == uid && p.CompletedAt != null && lessonIds.Contains(p.LessonId))
+                    .Select(p => p.LessonId).ToListAsync()
+                : [];
+
+            var product = course.IsFree ? null : await db.Products.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.CourseId == course.Id && p.Status == SaleStatus.Active);
+            var price = product is null ? null
+                : new PriceInfo(product.Id, product.CurrentPriceMinor(clock.GetUtcNow()), product.PriceMinor, product.Currency, product.AccessDays);
+
             return Results.Ok(new CourseDetail(
                 new CourseSummary(course.Id, course.Slug, course.Title, course.Summary, course.CoverUrl, course.IsFree, course.Category?.Name),
-                course.Description, hasAccess, outline));
+                course.Description, hasAccess, outline, quizzes, completed, price));
         });
 
         // Protected lesson body. 404 (not 403) for hidden items so drafts are not revealed.

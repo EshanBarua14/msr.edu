@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { RequireAuth, RequireRole } from '@/auth/guards'
 import { STAFF_ROLES } from '@/auth/roles'
 import { FullPageSpinner } from '@/components/ui/Spinner'
@@ -11,22 +11,52 @@ import Landing from '@/pages/Landing'
 import Placeholder from '@/pages/Placeholder'
 import { Forbidden, NotFound } from '@/pages/StatusPage'
 
+const s = (node: ReactNode) => <Suspense fallback={<FullPageSpinner />}>{node}</Suspense>
+
 const Login = lazy(() => import('@/pages/Login'))
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'))
 const PublicCourses = lazy(() => import('@/pages/PublicCourses'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
+const CourseDetail = lazy(() => import('@/pages/learn/CourseDetail'))
+const LessonPlayer = lazy(() => import('@/pages/learn/LessonPlayer'))
+const QuizPage = lazy(() => import('@/pages/learn/QuizPage'))
 const Dashboard = lazy(() => import('@/pages/app/Dashboard'))
+const MyCourses = lazy(() => import('@/pages/app/MyCourses'))
+const QuizResults = lazy(() => import('@/pages/app/QuizResults'))
+const AttemptPage = lazy(() => import('@/pages/app/AttemptPage'))
 const AdminOverview = lazy(() => import('@/pages/admin/Overview'))
+const CourseList = lazy(() => import('@/pages/admin/content/CourseList'))
+const CourseEditorPage = lazy(() => import('@/pages/admin/content/CourseEditorPage'))
+const LessonEditorPage = lazy(() => import('@/pages/admin/content/LessonEditorPage'))
+const QuizList = lazy(() => import('@/pages/admin/content/QuizList'))
+const QuizEditorPage = lazy(() => import('@/pages/admin/content/QuizEditorPage'))
+const DrivePage = lazy(() => import('@/pages/admin/content/DrivePage'))
+const SandboxPay = lazy(() => import('@/pages/checkout/SandboxPay'))
+const CheckoutReturn = lazy(() => import('@/pages/checkout/CheckoutReturn'))
+const Membership = lazy(() => import('@/pages/app/Membership'))
+const Transactions = lazy(() => import('@/pages/app/Transactions'))
+const ReceiptPage = lazy(() => import('@/pages/app/ReceiptPage'))
+const PricingPage = lazy(() => import('@/pages/admin/finance/PricingPage'))
+const PlansPage = lazy(() => import('@/pages/admin/finance/PlansPage'))
+const OrdersPage = lazy(() => import('@/pages/admin/finance/OrdersPage'))
+const OrderDetailPage = lazy(() => import('@/pages/admin/finance/OrderDetailPage'))
+const EntitlementsPage = lazy(() => import('@/pages/admin/finance/EntitlementsPage'))
 
-const s = (node: ReactNode) => <Suspense fallback={<FullPageSpinner />}>{node}</Suspense>
-
-const learnerPlaceholders = [
-  { path: 'courses', title: 'My courses', phase: 'Phase 4' },
-  { path: 'quizzes', title: 'Quiz results', phase: 'Phase 4' },
-  { path: 'subscription', title: 'Membership', phase: 'Phase 5' },
-  { path: 'transactions', title: 'Transactions', phase: 'Phase 5' },
-  { path: 'receipts', title: 'Receipts', phase: 'Phase 6' },
-]
+/** Admin sections that are built; the rest show a placeholder. Detail pages share their section's roles. */
+const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNode][] }> = {
+  courses: { index: s(<CourseList />), detail: [[':id', s(<CourseEditorPage />)]] },
+  modules: { index: <Navigate to="/admin/courses" replace />, detail: [['/admin/lessons/:id', s(<LessonEditorPage />)]] },
+  quizzes: { index: s(<QuizList />), detail: [[':id', s(<QuizEditorPage />)]] },
+  resources: { index: <Navigate to="/admin/courses" replace /> },
+  drive: { index: s(<DrivePage />) },
+  pricing: { index: s(<PricingPage />) },
+  plans: { index: s(<PlansPage />) },
+  orders: { index: s(<OrdersPage />), detail: [[':id', s(<OrderDetailPage />)]] },
+  pending: { index: <Navigate to="/admin/orders?status=pending,processing" replace /> },
+  refunds: { index: <Navigate to="/admin/orders?status=refund_pending,partially_refunded,refunded" replace /> },
+  receipts: { index: <Navigate to="/admin/orders?status=successful,partially_refunded,refunded" replace /> },
+  entitlements: { index: s(<EntitlementsPage />) },
+}
 
 export const router = createBrowserRouter([
   {
@@ -34,7 +64,19 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Landing /> },
       { path: 'courses', element: s(<PublicCourses />) },
+      { path: 'courses/:slug', element: s(<CourseDetail />) },
+      // Free previews open without signing in; the API decides what each viewer may see.
+      { path: 'courses/:slug/lessons/:lessonId', element: s(<LessonPlayer />) },
+      { path: 'courses/:slug/quizzes/:quizId', element: <RequireAuth />, children: [{ index: true, element: s(<QuizPage />) }] },
       { path: 'pricing', element: s(<Pricing />) },
+      {
+        path: 'checkout',
+        element: <RequireAuth />,
+        children: [
+          { path: 'sandbox/:txnId', element: s(<SandboxPay />) },
+          { path: 'return/:reference', element: s(<CheckoutReturn />) },
+        ],
+      },
       ...['terms', 'privacy', 'refunds'].map((path) => ({
         path,
         element: (
@@ -57,7 +99,13 @@ export const router = createBrowserRouter([
         element: <LearnerLayout />,
         children: [
           { index: true, element: s(<Dashboard />) },
-          ...learnerPlaceholders.map((p) => ({ path: p.path, element: <Placeholder title={p.title} phase={p.phase} /> })),
+          { path: 'courses', element: s(<MyCourses />) },
+          { path: 'quizzes', element: s(<QuizResults />) },
+          { path: 'quizzes/:attemptId', element: s(<AttemptPage />) },
+          { path: 'subscription', element: s(<Membership />) },
+          { path: 'transactions', element: s(<Transactions />) },
+          { path: 'receipts', element: s(<Transactions receiptsOnly />) },
+          { path: 'receipts/:number', element: s(<ReceiptPage />) },
         ],
       },
       {
@@ -68,11 +116,20 @@ export const router = createBrowserRouter([
             element: <AdminLayout />,
             children: [
               { index: true, element: s(<AdminOverview />) },
-              ...adminPages.map((p) => ({
-                path: p.to.replace('/admin/', ''),
-                element: <RequireRole anyOf={p.roles} />,
-                children: [{ index: true, element: <Placeholder title={p.label} /> }],
-              })),
+              ...adminPages.map((p) => {
+                const section = p.to.replace('/admin/', '')
+                const screen = adminScreens[section]
+                return {
+                  element: <RequireRole anyOf={p.roles} />,
+                  children: [
+                    { path: section, element: screen?.index ?? <Placeholder title={p.label} /> },
+                    ...(screen?.detail ?? []).map(([path, element]) => ({
+                      path: path.startsWith('/') ? path.replace('/admin/', '') : `${section}/${path}`,
+                      element,
+                    })),
+                  ],
+                }
+              }),
             ],
           },
         ],

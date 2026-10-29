@@ -24,6 +24,9 @@ public class Course
     public bool IsFree { get; set; }
     public int Position { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
+    /// <summary>Google Drive folder this course's resources sync from. Admin-only.</summary>
+    public string? DriveFolderId { get; set; }
+    public DateTimeOffset? DriveSyncedAt { get; set; }
     public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -92,6 +95,8 @@ public class ResourceSource
 {
     public Guid ResourceId { get; set; }
     public required string DriveFileId { get; set; }
+    /// <summary>Mime type in Drive; Google Docs/Sheets/Slides are delivered as PDF.</summary>
+    public string? DriveMimeType { get; set; }
     public DateTimeOffset? DriveModifiedAt { get; set; }
     public string? Checksum { get; set; }
 }

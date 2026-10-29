@@ -4,8 +4,8 @@ import { useAuth } from './AuthProvider'
 import { hasAnyRole, type Role } from './roles'
 
 /**
- * UI-level route guards. These only shape navigation; real enforcement is
- * Row Level Security and server-side checks in Supabase.
+ * UI-level route guards. These only shape navigation; the API enforces
+ * every permission on the server.
  */
 export function RequireAuth() {
   const { status } = useAuth()
