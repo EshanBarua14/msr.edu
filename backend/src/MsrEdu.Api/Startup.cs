@@ -37,6 +37,9 @@ public static class Startup
         services.Configure<DriveOptions>(config.GetSection("GoogleDrive"));
         services.AddSingleton<IDriveClient, GoogleDriveClient>();
         services.AddScoped<DriveSyncService>();
+        services.Configure<AiOptions>(config.GetSection("Ai"));
+        services.AddSingleton<IQuestionGenerator, ClaudeQuestionGenerator>();
+        services.AddScoped<QuestionDraftService>();
         services.AddScoped<UserProvisioning>();
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 

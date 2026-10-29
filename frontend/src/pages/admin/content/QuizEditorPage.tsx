@@ -147,6 +147,58 @@ function QuestionCard({ q, index, onChange, onError }: { q: QuestionDto; index: 
   )
 }
 
+function AiDrafts({ quiz, lessons, onDrafted }: { quiz: QuizEditor; lessons: { id: string; title: string }[]; onDrafted: (q: QuizEditor) => void }) {
+  const [status] = useApi<{ configured: boolean }>('/api/admin/ai/status')
+  const [lessonId, setLessonId] = useState(quiz.lessonId ?? '')
+  const [count, setCount] = useState(5)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function draft() {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const before = quiz.questions.length
+      const updated = await api<QuizEditor>(`/api/admin/quizzes/${quiz.id}/ai-drafts`, { json: { lessonId: lessonId || null, count } })
+      onDrafted(updated)
+      const added = updated.questions.length - before
+      setMsg({ ok: added > 0, text: added > 0 ? `${added} drafts added. Review each one before learners can see it.` : 'No usable questions came back. Try again.' })
+    } catch (err) {
+      setMsg({ ok: false, text: problemText(err) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!status.data) return null
+  return (
+    <Card className="mt-4">
+      <h2 className="flex items-center gap-2 font-semibold"><Sparkles className="size-4 text-brand-500" />Draft with AI</h2>
+      {status.data.configured ? (
+        <div className="mt-4 grid gap-3">
+          <Field label="From lesson">
+            {(id) => (
+              <Select id={id} value={lessonId} onChange={(e) => setLessonId(e.target.value)}>
+                <option value="">Whole course</option>
+                {lessons.map((l) => <option key={l.id} value={l.id}>{l.title}</option>)}
+              </Select>
+            )}
+          </Field>
+          <Field label="Questions">
+            {(id) => <Input id={id} type="number" min={1} max={10} value={count} onChange={(e) => setCount(Math.min(10, Math.max(1, Number(e.target.value))))} />}
+          </Field>
+          <Button variant="secondary" onClick={draft} disabled={busy}>
+            {busy ? <Spinner className="size-4" /> : <Sparkles className="size-4" />}{busy ? 'Drafting…' : 'Draft questions'}
+          </Button>
+          {msg && <p role="status" className={`text-sm ${msg.ok ? 'text-success' : 'text-danger'}`}>{msg.text}</p>}
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-muted">Not set up. Add an Anthropic API key as <span className="font-mono">Ai:AnthropicApiKey</span> on the server (see README).</p>
+      )}
+    </Card>
+  )
+}
+
 function Settings({ quiz, lessons, onSaved }: { quiz: QuizEditor; lessons: { id: string; title: string }[]; onSaved: (q: QuizEditor) => void }) {
   const [f, setF] = useState<QuizFields>(quiz)
   const [busy, setBusy] = useState(false)
@@ -265,6 +317,7 @@ function Editor({ initial, reload }: { initial: QuizEditor; reload: () => void }
         </div>
         <div className="lg:sticky lg:top-24 lg:self-start">
           <Settings quiz={quiz} lessons={course.data?.lessons ?? []} onSaved={setQuiz} />
+          <AiDrafts quiz={quiz} lessons={course.data?.lessons ?? []} onDrafted={setQuiz} />
           <p className="mt-3 text-xs text-muted">
             Only approved questions are shown to learners and graded. Questions written here are approved when saved; AI drafts wait for review.
           </p>

@@ -76,7 +76,18 @@ dotnet user-secrets set "GoogleDrive:ServiceAccountKeyPath" "C:\secrets\msr-driv
 4. Share each course folder in Drive with the service account email (Viewer). Admin → Google Drive shows the email.
 5. Admin → Courses → a course → **Resources** → paste the folder link → **Sync from Drive**. New files arrive as drafts; attach them to a lesson and publish. Files removed from Drive are archived, not deleted. Google Docs, Sheets and Slides are delivered as PDF.
 
-### 4. Run
+### 4. AI question drafts (optional)
+
+Admins can draft multiple-choice questions from lesson text with Claude (model `claude-opus-5-5`, configurable as `Ai:Model`). Drafts are saved as unapproved questions: learners never see them, and they aren't graded, until someone approves each one in the quiz editor.
+
+```powershell
+cd backend/src/MsrEdu.Api
+dotnet user-secrets set "Ai:AnthropicApiKey" "sk-ant-..."
+```
+
+Get a key at https://platform.claude.com. The key stays on the server.
+
+### 5. Run
 
 Two terminals:
 
@@ -128,7 +139,7 @@ Copy-Item -Recurse -Force dist\* ..\backend\src\MsrEdu.Api\wwwroot\
 cd ..\backend; dotnet publish src/MsrEdu.Api -c Release -o out
 ```
 
-On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountKeyPath` or `GoogleDrive__ServiceAccountJson` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
+On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountKeyPath` or `GoogleDrive__ServiceAccountJson` and `Ai__AnthropicApiKey` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
 
 ## Security model
 

@@ -49,6 +49,8 @@ public static partial class AdminContentEndpoints
         IReadOnlyList<QuestionDto> Questions);
     public record QuestionRequest(string Prompt, string? Explanation, decimal Marks, IReadOnlyList<OptionDto> Options);
     public record ReviewRequest(bool Approve);
+    public record AiStatus(bool Configured);
+    public record DraftRequest(Guid? LessonId, int Count);
 
     public static void MapAdminContentEndpoints(this IEndpointRouteBuilder app)
     {
@@ -294,6 +296,38 @@ public static partial class AdminContentEndpoints
             question.ReviewedAt = clock.GetUtcNow();
             await db.SaveChangesAsync();
             return Results.Ok(await QuizEditorAsync(db, question.QuizId));
+        });
+
+        g.MapGet("/ai/status", (Services.IQuestionGenerator generator) => new AiStatus(generator.IsConfigured));
+
+        // AI drafts land as unapproved questions; learners never see them until a person approves each one.
+        g.MapPost("/quizzes/{id:guid}/ai-drafts", async (Guid id, DraftRequest req, AppDbContext db,
+            Services.IQuestionGenerator generator, Services.QuestionDraftService drafts, CancellationToken ct) =>
+        {
+            if (!generator.IsConfigured) return Results.Problem("AI drafting is not configured on the server.", statusCode: StatusCodes.Status503ServiceUnavailable);
+            if (req.Count is < 1 or > 10) return Bad("Ask for between 1 and 10 questions.");
+            var quiz = await db.Quizzes.AsNoTracking().FirstOrDefaultAsync(q => q.Id == id, ct);
+            if (quiz is null) return Results.NotFound();
+            if (req.LessonId is { } lid && !await db.Lessons.AnyAsync(l => l.Id == lid && l.CourseId == quiz.CourseId, ct))
+                return Bad("That lesson belongs to another course.");
+            try
+            {
+                await drafts.DraftAsync(id, req.LessonId, req.Count, ct);
+            }
+            catch (Services.AiDraftException e) { return Bad(e.Message); }
+            catch (Anthropic.Exceptions.AnthropicUnauthorizedException)
+            {
+                return Results.Problem("The server's AI key was rejected. Check Ai:AnthropicApiKey.", statusCode: StatusCodes.Status502BadGateway);
+            }
+            catch (Anthropic.Exceptions.AnthropicRateLimitException)
+            {
+                return Results.Problem("The AI service is busy. Try again in a minute.", statusCode: StatusCodes.Status429TooManyRequests);
+            }
+            catch (Anthropic.Exceptions.AnthropicException)
+            {
+                return Results.Problem("The AI service didn't return usable questions. Try again shortly.", statusCode: StatusCodes.Status502BadGateway);
+            }
+            return Results.Ok(await QuizEditorAsync(db, id));
         });
 
         g.MapDelete("/questions/{id:guid}", async (Guid id, AppDbContext db) =>
