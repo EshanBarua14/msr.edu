@@ -27,5 +27,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
-supabase/.temp
-supabase/.branches
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+backend/src/MsrEdu.Api/wwwroot/
