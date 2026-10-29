@@ -61,9 +61,9 @@ public class DriveTests(DriveApiFactory factory) : IClassFixture<DriveApiFactory
 
         factory.Drive.Folders[Folder] =
         [
-            new("f1", "Notes.pdf", "application/pdf", 100, DateTimeOffset.UtcNow, "m1"),
-            new("f2", "Slides", "application/vnd.google-apps.presentation", null, DateTimeOffset.UtcNow, null),
-            new("f3", "Sub folder", "application/vnd.google-apps.folder", null, null, null),
+            new("DRIVE_FILE_ONE", "Notes.pdf", "application/pdf", 100, DateTimeOffset.UtcNow, "m1"),
+            new("DRIVE_FILE_TWO", "Slides", "application/vnd.google-apps.presentation", null, DateTimeOffset.UtcNow, null),
+            new("DRIVE_FOLDER_X", "Sub folder", "application/vnd.google-apps.folder", null, null, null),
         ];
         var editor = await factory.SignedIn(Email(), RoleKeys.ContentManager);
         var res = await editor.PostAsJsonAsync($"/api/admin/courses/{course.Id}/drive/sync", new SyncRequest($"https://drive.google.com/drive/folders/{Folder}"));
@@ -86,14 +86,14 @@ public class DriveTests(DriveApiFactory factory) : IClassFixture<DriveApiFactory
         await editor.PutAsJsonAsync($"/api/admin/resources/{notes.Id}", new ResourceUpdate("Notes.pdf", preview.Id, false, "published"));
         var download = await factory.Client().GetAsync($"/api/resources/{notes.Id}/download");
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
-        Assert.Equal("content of f1 as application/pdf", await download.Content.ReadAsStringAsync());
+        Assert.Equal("content of DRIVE_FILE_ONE as application/pdf", await download.Content.ReadAsStringAsync());
         Assert.Equal("attachment", download.Content.Headers.ContentDisposition!.DispositionType);
         var lessonFiles = await learner.GetStringAsync($"/api/lessons/{preview.Id}/resources");
         Assert.Contains("Notes.pdf", lessonFiles);
-        Assert.DoesNotContain("f1", lessonFiles); // Drive ids never reach learners
+        Assert.DoesNotContain("DRIVE_FILE", lessonFiles); // Drive ids never reach learners
 
         // Rename in Drive refreshes; removal archives (never deletes).
-        factory.Drive.Folders[Folder] = [new("f1", "Notes v2.pdf", "application/pdf", 120, DateTimeOffset.UtcNow.AddMinutes(1), "m2")];
+        factory.Drive.Folders[Folder] = [new("DRIVE_FILE_ONE", "Notes v2.pdf", "application/pdf", 120, DateTimeOffset.UtcNow.AddMinutes(1), "m2")];
         res = await editor.PostAsJsonAsync($"/api/admin/courses/{course.Id}/drive/sync", new SyncRequest(Folder));
         Assert.Equal(new DriveSyncService.Result(0, 1, 1, 0), await res.Content.ReadFromJsonAsync<DriveSyncService.Result>());
         list = await editor.GetFromJsonAsync<CourseResources>($"/api/admin/courses/{course.Id}/resources");
