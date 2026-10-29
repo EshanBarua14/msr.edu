@@ -15,14 +15,18 @@ const Login = lazy(() => import('@/pages/Login'))
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'))
 const PublicCourses = lazy(() => import('@/pages/PublicCourses'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
+const CourseDetail = lazy(() => import('@/pages/learn/CourseDetail'))
+const LessonPlayer = lazy(() => import('@/pages/learn/LessonPlayer'))
+const QuizPage = lazy(() => import('@/pages/learn/QuizPage'))
 const Dashboard = lazy(() => import('@/pages/app/Dashboard'))
+const MyCourses = lazy(() => import('@/pages/app/MyCourses'))
+const QuizResults = lazy(() => import('@/pages/app/QuizResults'))
+const AttemptPage = lazy(() => import('@/pages/app/AttemptPage'))
 const AdminOverview = lazy(() => import('@/pages/admin/Overview'))
 
 const s = (node: ReactNode) => <Suspense fallback={<FullPageSpinner />}>{node}</Suspense>
 
 const learnerPlaceholders = [
-  { path: 'courses', title: 'My courses', phase: 'Phase 4' },
-  { path: 'quizzes', title: 'Quiz results', phase: 'Phase 4' },
   { path: 'subscription', title: 'Membership', phase: 'Phase 5' },
   { path: 'transactions', title: 'Transactions', phase: 'Phase 5' },
   { path: 'receipts', title: 'Receipts', phase: 'Phase 6' },
@@ -34,6 +38,10 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Landing /> },
       { path: 'courses', element: s(<PublicCourses />) },
+      { path: 'courses/:slug', element: s(<CourseDetail />) },
+      // Free previews open without signing in; the API decides what each viewer may see.
+      { path: 'courses/:slug/lessons/:lessonId', element: s(<LessonPlayer />) },
+      { path: 'courses/:slug/quizzes/:quizId', element: <RequireAuth />, children: [{ index: true, element: s(<QuizPage />) }] },
       { path: 'pricing', element: s(<Pricing />) },
       ...['terms', 'privacy', 'refunds'].map((path) => ({
         path,
@@ -57,6 +65,9 @@ export const router = createBrowserRouter([
         element: <LearnerLayout />,
         children: [
           { index: true, element: s(<Dashboard />) },
+          { path: 'courses', element: s(<MyCourses />) },
+          { path: 'quizzes', element: s(<QuizResults />) },
+          { path: 'quizzes/:attemptId', element: s(<AttemptPage />) },
           ...learnerPlaceholders.map((p) => ({ path: p.path, element: <Placeholder title={p.title} phase={p.phase} /> })),
         ],
       },

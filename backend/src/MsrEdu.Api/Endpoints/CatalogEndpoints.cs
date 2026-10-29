@@ -10,7 +10,10 @@ public static class CatalogEndpoints
     public record CourseSummary(Guid Id, string Slug, string Title, string? Summary, string? CoverUrl, bool IsFree, string? Category);
     public record LessonOutline(Guid Id, string Slug, string Title, string Kind, int? DurationSeconds, bool IsPreview, bool Locked);
     public record ModuleOutline(Guid? Id, string Title, IReadOnlyList<LessonOutline> Lessons);
-    public record CourseDetail(CourseSummary Course, string? Description, bool HasAccess, IReadOnlyList<ModuleOutline> Modules);
+    public record QuizOutline(Guid Id, string Title, Guid? LessonId, int QuestionCount, bool IsPreview, bool Locked);
+    public record CourseDetail(
+        CourseSummary Course, string? Description, bool HasAccess, IReadOnlyList<ModuleOutline> Modules,
+        IReadOnlyList<QuizOutline> Quizzes, IReadOnlyList<Guid> CompletedLessonIds);
     public record LessonContentResponse(Guid LessonId, string Title, string? Body, string? VideoRef);
 
     public static void MapCatalogEndpoints(this IEndpointRouteBuilder app)
@@ -52,9 +55,21 @@ public static class CatalogEndpoints
             var loose = lessons.Where(l => l.ModuleId is null || modules.All(m => m.Id != l.ModuleId)).Select(Outline).ToList();
             if (loose.Count > 0) outline.Insert(0, new ModuleOutline(null, "Lessons", loose));
 
+            var quizzes = await db.Quizzes.AsNoTracking()
+                .Where(q => q.CourseId == course.Id && (q.Status == PublishStatus.Published || user.IsStaff))
+                .OrderBy(q => q.CreatedAt)
+                .Select(q => new QuizOutline(q.Id, q.Title, q.LessonId,
+                    q.Questions.Count(x => x.ReviewStatus == QuestionReviewStatus.Approved), q.IsPreview, !(hasAccess || q.IsPreview)))
+                .ToListAsync();
+            var lessonIds = lessons.Select(l => l.Id).ToList();
+            var completed = user.Id is { } uid
+                ? await db.LessonProgress.Where(p => p.UserId == uid && p.CompletedAt != null && lessonIds.Contains(p.LessonId))
+                    .Select(p => p.LessonId).ToListAsync()
+                : [];
+
             return Results.Ok(new CourseDetail(
                 new CourseSummary(course.Id, course.Slug, course.Title, course.Summary, course.CoverUrl, course.IsFree, course.Category?.Name),
-                course.Description, hasAccess, outline));
+                course.Description, hasAccess, outline, quizzes, completed));
         });
 
         // Protected lesson body. 404 (not 403) for hidden items so drafts are not revealed.

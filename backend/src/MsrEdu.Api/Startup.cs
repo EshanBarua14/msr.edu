@@ -33,6 +33,7 @@ public static class Startup
             .AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<AccessService>();
         services.AddScoped<EntitlementService>();
+        services.AddScoped<QuizService>();
         services.AddScoped<UserProvisioning>();
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
@@ -140,6 +141,7 @@ public static class Startup
         app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
         app.MapAuthEndpoints();
         app.MapCatalogEndpoints();
+        app.MapLearningEndpoints();
         app.MapAdminEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
