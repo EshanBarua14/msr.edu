@@ -5,7 +5,11 @@ import { BellRing, BookOpen, CreditCard, GraduationCap, ListChecks, PlayCircle }
 import { useAuth } from '@/auth/AuthProvider'
 import { buttonClass } from '@/components/ui/buttonClass'
 import { Card } from '@/components/ui/Card'
+import { AttemptRow } from '@/components/learn/AttemptRow'
+import { CourseProgressRow } from '@/components/learn/CourseProgressRow'
 import { EmptyState } from '@/components/ui/EmptyState'
+import type { MyLearning } from '@/lib/learning'
+import { useApi } from '@/lib/useApi'
 
 const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } }
 const item: Variants = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }
@@ -27,6 +31,10 @@ function Section({ title, action, children, className }: { title: string; action
 export default function Dashboard() {
   const { profile } = useAuth()
   const firstName = profile?.fullName?.split(' ')[0]
+  const [learning] = useApi<MyLearning>('/api/me/learning')
+  const courses = learning.data?.courses ?? []
+  const current = courses[0]
+  const attempts = learning.data?.recentAttempts ?? []
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="grid gap-5 lg:grid-cols-3">
@@ -43,9 +51,13 @@ export default function Dashboard() {
       </motion.div>
 
       <Section title="Continue learning" className="lg:col-span-2">
-        <EmptyState icon={PlayCircle} title="Nothing in progress">
-          Start a course or a free preview and it will show up here.
-        </EmptyState>
+        {current ? (
+          <CourseProgressRow c={current} />
+        ) : (
+          <EmptyState icon={PlayCircle} title="Nothing in progress">
+            Start a course or a free preview and it will show up here.
+          </EmptyState>
+        )}
       </Section>
 
       <Section title="Membership">
@@ -54,16 +66,35 @@ export default function Dashboard() {
         </EmptyState>
       </Section>
 
-      <Section title="My courses" className="lg:col-span-2">
-        <EmptyState icon={BookOpen} title="No purchased courses yet" />
+      <Section
+        title="My courses"
+        className="lg:col-span-2"
+        action={courses.length > 0 && <Link to="/app/courses" className="text-sm font-medium text-brand-600 hover:underline">View all</Link>}
+      >
+        {courses.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {courses.slice(0, 3).map((c) => <CourseProgressRow key={c.courseId} c={c} />)}
+          </div>
+        ) : (
+          <EmptyState icon={BookOpen} title="No courses started yet" />
+        )}
       </Section>
 
       <Section title="Expiring access">
         <EmptyState icon={BellRing} title="Nothing expiring soon" />
       </Section>
 
-      <Section title="Quiz results">
-        <EmptyState icon={ListChecks} title="No quiz attempts yet" />
+      <Section
+        title="Quiz results"
+        action={attempts.length > 0 && <Link to="/app/quizzes" className="text-sm font-medium text-brand-600 hover:underline">All</Link>}
+      >
+        {attempts.length > 0 ? (
+          <div className="-mx-3 flex flex-col">
+            {attempts.slice(0, 3).map((a) => <AttemptRow key={a.id} a={a} />)}
+          </div>
+        ) : (
+          <EmptyState icon={ListChecks} title="No quiz attempts yet" />
+        )}
       </Section>
 
       <Section

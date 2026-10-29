@@ -33,6 +33,13 @@ public static class Startup
             .AddInterceptors(sp.GetRequiredService<AuditInterceptor>()));
         services.AddScoped<AccessService>();
         services.AddScoped<EntitlementService>();
+        services.AddScoped<QuizService>();
+        services.Configure<DriveOptions>(config.GetSection("GoogleDrive"));
+        services.AddSingleton<IDriveClient, GoogleDriveClient>();
+        services.AddScoped<DriveSyncService>();
+        services.Configure<AiOptions>(config.GetSection("Ai"));
+        services.AddSingleton<IQuestionGenerator, ClaudeQuestionGenerator>();
+        services.AddScoped<QuestionDraftService>();
         services.AddScoped<UserProvisioning>();
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
@@ -140,7 +147,10 @@ public static class Startup
         app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
         app.MapAuthEndpoints();
         app.MapCatalogEndpoints();
+        app.MapLearningEndpoints();
         app.MapAdminEndpoints();
+        app.MapAdminContentEndpoints();
+        app.MapResourceEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
         // Production: serve the built React app (frontend/dist copied to wwwroot) from the same origin.

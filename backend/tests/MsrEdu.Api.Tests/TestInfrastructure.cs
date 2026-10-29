@@ -13,7 +13,7 @@ namespace MsrEdu.Api.Tests;
 /// One throwaway PostgreSQL database per test class, migrated from scratch.
 /// Server: MSR_TEST_DB (default: local postgres/postgres on 5432).
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private static readonly string DbServer =
         Environment.GetEnvironmentVariable("MSR_TEST_DB") ?? "Host=localhost;Port=5432;Username=postgres;Password=postgres";
