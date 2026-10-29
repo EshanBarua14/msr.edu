@@ -168,6 +168,16 @@ public class SecurityTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Simultaneous_first_sign_ins_as_one_person_all_succeed()
+    {
+        var email = Email();
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
+            factory.Client().PostAsJsonAsync("/api/auth/dev-login", new { email, roles = Array.Empty<string>() })));
+        Assert.All(results, r => Assert.Equal(HttpStatusCode.NoContent, r.StatusCode));
+        Assert.Equal(1, await InDbAsync(db => db.Users.CountAsync(u => u.Email == email)));
+    }
+
+    [Fact]
     public async Task Responses_carry_security_headers()
     {
         var res = await factory.Client().GetAsync("/api/health");
