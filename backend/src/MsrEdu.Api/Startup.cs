@@ -34,6 +34,12 @@ public static class Startup
         services.AddScoped<AccessService>();
         services.AddScoped<EntitlementService>();
         services.AddScoped<QuizService>();
+        services.Configure<PaymentOptions>(config.GetSection("Payments"));
+        // The sandbox fakes successful payments, so it can never run in Production.
+        if (config.GetValue<bool>("Payments:Sandbox:Enabled") && !builder.Environment.IsProduction())
+            services.AddSingleton<IPaymentGateway, SandboxGateway>();
+        services.AddSingleton<PaymentGateways>();
+        services.AddScoped<PaymentService>();
         services.Configure<DriveOptions>(config.GetSection("GoogleDrive"));
         services.AddSingleton<IDriveClient, GoogleDriveClient>();
         services.AddScoped<DriveSyncService>();
@@ -151,6 +157,8 @@ public static class Startup
         app.MapAdminEndpoints();
         app.MapAdminContentEndpoints();
         app.MapResourceEndpoints();
+        app.MapPaymentEndpoints();
+        app.MapFinanceEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
         // Production: serve the built React app (frontend/dist copied to wwwroot) from the same origin.

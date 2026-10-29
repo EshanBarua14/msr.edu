@@ -1,4 +1,5 @@
 /** Shapes returned by the learning API (backend/src/MsrEdu.Api/Endpoints). */
+import type { PriceInfo } from './billing'
 
 export interface CourseSummary {
   id: string
@@ -44,6 +45,7 @@ export interface CourseDetail {
   modules: ModuleOutline[]
   quizzes: QuizOutline[]
   completedLessonIds: string[]
+  price: PriceInfo | null
 }
 
 export interface LessonContent {

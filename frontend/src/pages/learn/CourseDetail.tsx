@@ -2,6 +2,8 @@ import { Link, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { CheckCircle2, ListChecks, Lock } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
+import { BuyButton } from '@/components/billing/BuyButton'
+import { Price } from '@/components/billing/Price'
 import { AccessPrompt } from '@/components/learn/AccessPrompt'
 import { CourseCover } from '@/components/learn/CourseCard'
 import { lessonIcon } from '@/components/learn/lessonIcon'
@@ -10,6 +12,7 @@ import { buttonClass } from '@/components/ui/buttonClass'
 import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { FullPageSpinner } from '@/components/ui/Spinner'
+import { accessLabel } from '@/lib/billing'
 import { type CourseDetail as Detail, flatLessons, formatDuration, lessonPath, percent, quizPath } from '@/lib/learning'
 import { useApi } from '@/lib/useApi'
 
@@ -116,7 +119,17 @@ export default function CourseDetail() {
                   {done.size > 0 ? 'Continue' : d.hasAccess ? 'Start course' : 'Watch free preview'}
                 </Link>
               )}
-              {!d.hasAccess && (
+              {!d.hasAccess && d.price && (
+                <div className="flex flex-col gap-3 border-t border-border pt-4">
+                  <p className="text-center">
+                    <Price className="text-2xl" priceMinor={d.price.priceMinor} regularMinor={d.price.regularMinor} currency={d.price.currency} />
+                    <span className="mt-1 block text-xs text-muted">{accessLabel(d.price.accessDays)}</span>
+                  </p>
+                  <BuyButton productId={d.price.productId}>Buy this course</BuyButton>
+                  <Link to="/pricing" className="text-center text-sm text-brand-600 hover:underline">Or see memberships</Link>
+                </div>
+              )}
+              {!d.hasAccess && !d.price && (
                 <Link to="/pricing" className={buttonClass(next ? 'secondary' : 'primary', 'md', 'w-full')}>
                   Unlock full course
                 </Link>

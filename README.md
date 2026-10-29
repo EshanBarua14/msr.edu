@@ -87,7 +87,13 @@ dotnet user-secrets set "Ai:AnthropicApiKey" "sk-ant-..."
 
 Get a key at https://platform.claude.com. The key stays on the server.
 
-### 5. Run
+### 5. Payments
+
+No real gateway is chosen yet. In Development the **sandbox gateway** is on (`backend/src/MsrEdu.Api/appsettings.Development.json`): checkout opens a test payment page where you pick Pay, Decline or Cancel, and the sandbox sends a signed webhook that goes through the same verification as a real provider. Set prices in **Admin → Course pricing** and **Admin → Subscription plans**. The sandbox can't be turned on in Production.
+
+Adding a real provider (bKash, Nagad, SSLCommerz, a card processor) means one class implementing `IPaymentGateway` (`Services/PaymentGateway.cs`), registered in `Startup.cs`, with its keys in user secrets or environment variables, and `Payments:Gateway` set to its key. Its webhook URL is `https://<your-domain>/api/webhooks/<key>`.
+
+### 6. Run
 
 Two terminals:
 
@@ -139,7 +145,7 @@ Copy-Item -Recurse -Force dist\* ..\backend\src\MsrEdu.Api\wwwroot\
 cd ..\backend; dotnet publish src/MsrEdu.Api -c Release -o out
 ```
 
-On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountKeyPath` or `GoogleDrive__ServiceAccountJson` and `Ai__AnthropicApiKey` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
+On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountKeyPath` or `GoogleDrive__ServiceAccountJson`, `Ai__AnthropicApiKey` and your payment gateway's keys as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
 
 ## Security model
 
@@ -150,6 +156,7 @@ On the server, set `ConnectionStrings__Default`, `Authentication__Google__Client
 - **Entitlements** are created only by `EntitlementService.GrantForOrderAsync`. It requires a successful order with a verified transaction matching the amount and currency, locks the order row, and is idempotent, so duplicate or concurrent webhooks are safe.
 - **Database guards** apply even to pgAdmin or scripts: the payment status state machine, immutable order amounts and line snapshots, no deletes on financial rows, refunds ≤ amount paid, receipts only for verified payments, an append-only audit log, and the last owner can't be removed.
 - **Audit:** changes to roles, settings, plans, prices, discounts, orders, transactions, refunds, subscriptions and entitlements are written to `audit_logs` along with the user who made them.
+- **Payments:** checkout prices come from the database, never the browser, and each order keeps a frozen snapshot of what was sold. Access is granted only from an authenticated webhook (`/api/webhooks/{provider}`) whose amount and currency match the transaction; returning from the gateway proves nothing. Each provider event is processed once under a row lock. Amount mismatches and payments that arrive after an order was closed are recorded for reconciliation instead of granting access. A full refund applies `refund.access_policy`; partial refunds keep access.
 - **Course files** are streamed by the API after an access check (`/api/resources/{id}/download`); Drive file ids stay server-side.
 - **Secrets:** Google, Drive service account, payment gateway and AI credentials live in user secrets or server environment variables, never in the repo or the frontend.
 
