@@ -27,6 +27,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:Default", ConnectionString);
         builder.UseSetting("Auth:EnableDevLogin", "true");
         builder.UseSetting("Auth:OwnerEmails:0", "owner@test.local");
+        // Every test request comes from the same in-memory client; RateLimitTests checks the real limits.
+        foreach (var key in new[] { "CheckoutPerMinute", "WebhooksPerMinute", "SignInPerMinute", "SandboxPerMinute" })
+            builder.UseSetting($"RateLimits:{key}", "100000");
     }
 
     public async ValueTask InitializeAsync()
