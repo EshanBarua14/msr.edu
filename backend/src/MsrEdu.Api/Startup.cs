@@ -159,6 +159,7 @@ public static class Startup
         app.MapResourceEndpoints();
         app.MapPaymentEndpoints();
         app.MapFinanceEndpoints();
+        app.MapOpsEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
         // Production: serve the built React app (frontend/dist copied to wwwroot) from the same origin.

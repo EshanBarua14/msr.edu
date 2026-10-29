@@ -41,6 +41,11 @@ const PlansPage = lazy(() => import('@/pages/admin/finance/PlansPage'))
 const OrdersPage = lazy(() => import('@/pages/admin/finance/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/admin/finance/OrderDetailPage'))
 const EntitlementsPage = lazy(() => import('@/pages/admin/finance/EntitlementsPage'))
+const UsersPage = lazy(() => import('@/pages/admin/ops/UsersPage'))
+const ReportsPage = lazy(() => import('@/pages/admin/ops/ReportsPage'))
+const ReconciliationPage = lazy(() => import('@/pages/admin/ops/ReconciliationPage'))
+const AuditPage = lazy(() => import('@/pages/admin/ops/AuditPage'))
+const SettingsPage = lazy(() => import('@/pages/admin/ops/SettingsPage'))
 
 /** Admin sections that are built; the rest show a placeholder. Detail pages share their section's roles. */
 const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNode][] }> = {
@@ -56,6 +61,11 @@ const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNo
   refunds: { index: <Navigate to="/admin/orders?status=refund_pending,partially_refunded,refunded" replace /> },
   receipts: { index: <Navigate to="/admin/orders?status=successful,partially_refunded,refunded" replace /> },
   entitlements: { index: s(<EntitlementsPage />) },
+  users: { index: s(<UsersPage />) },
+  reports: { index: s(<ReportsPage />) },
+  reconciliation: { index: s(<ReconciliationPage />) },
+  audit: { index: s(<AuditPage />) },
+  settings: { index: s(<SettingsPage />) },
 }
 
 export const router = createBrowserRouter([
