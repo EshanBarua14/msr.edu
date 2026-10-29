@@ -3,16 +3,21 @@ import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'motion/react'
 import { BellRing, BookOpen, CreditCard, GraduationCap, ListChecks, PlayCircle } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
+import { StatusBadge } from '@/components/billing/StatusBadge'
 import { buttonClass } from '@/components/ui/buttonClass'
 import { Card } from '@/components/ui/Card'
 import { AttemptRow } from '@/components/learn/AttemptRow'
 import { CourseProgressRow } from '@/components/learn/CourseProgressRow'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { expiringSoon, formatDate, type Membership, type OrderView } from '@/lib/billing'
+import { formatMoney } from '@/lib/business'
 import type { MyLearning } from '@/lib/learning'
 import { useApi } from '@/lib/useApi'
 
 const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } }
 const item: Variants = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }
+const EXPIRING_DAYS = 14
+const link = 'text-sm font-medium text-brand-600 hover:underline'
 
 function Section({ title, action, children, className }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -35,6 +40,11 @@ export default function Dashboard() {
   const courses = learning.data?.courses ?? []
   const current = courses[0]
   const attempts = learning.data?.recentAttempts ?? []
+  const [membership] = useApi<Membership>('/api/me/membership')
+  const [orders] = useApi<OrderView[]>('/api/me/orders')
+  const plans = (membership.data?.subscriptions ?? []).filter((s) => s.status === 'active' || s.status === 'grace')
+  const expiring = expiringSoon(membership.data?.access ?? [], EXPIRING_DAYS)
+  const recent = (orders.data ?? []).slice(0, 3)
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="grid gap-5 lg:grid-cols-3">
@@ -60,10 +70,21 @@ export default function Dashboard() {
         )}
       </Section>
 
-      <Section title="Membership">
-        <EmptyState icon={GraduationCap} title="No active membership">
-          <Link to="/pricing" className="font-medium text-brand-600 hover:underline">See plans</Link>
-        </EmptyState>
+      <Section title="Membership" action={plans.length > 0 && <Link to="/app/subscription" className={link}>Details</Link>}>
+        {plans.length > 0 ? (
+          <ul className="flex flex-col gap-3 text-sm">
+            {plans.map((p) => (
+              <li key={p.id} className="flex items-start justify-between gap-2">
+                <span><span className="font-medium">{p.planName}</span><span className="block text-xs text-muted">Until {formatDate(p.periodEnd)}</span></span>
+                <StatusBadge status={p.status} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={GraduationCap} title="No active membership">
+            <Link to="/pricing" className="font-medium text-brand-600 hover:underline">See plans</Link>
+          </EmptyState>
+        )}
       </Section>
 
       <Section
@@ -81,7 +102,18 @@ export default function Dashboard() {
       </Section>
 
       <Section title="Expiring access">
-        <EmptyState icon={BellRing} title="Nothing expiring soon" />
+        {expiring.length > 0 ? (
+          <ul className="flex flex-col gap-3 text-sm">
+            {expiring.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-2">
+                <span className="font-medium">{a.title}</span>
+                <span className="text-xs text-warning">Ends {formatDate(a.expiresAt)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={BellRing} title="Nothing expiring soon" />
+        )}
       </Section>
 
       <Section
@@ -100,11 +132,25 @@ export default function Dashboard() {
       <Section
         title="Recent transactions"
         className="lg:col-span-2"
-        action={<Link to="/app/transactions" className="text-sm font-medium text-brand-600 hover:underline">View all</Link>}
+        action={<Link to="/app/transactions" className={link}>View all</Link>}
       >
-        <EmptyState icon={CreditCard} title="No transactions yet">
-          Receipts appear here once a payment is verified.
-        </EmptyState>
+        {recent.length > 0 ? (
+          <ul className="flex flex-col divide-y divide-border text-sm">
+            {recent.map((o) => (
+              <li key={o.reference} className="flex items-center justify-between gap-3 py-2.5">
+                <span>
+                  <span className="font-medium">{o.items.map((i) => i.name).join(', ')}</span>
+                  <span className="block text-xs text-muted">{formatDate(o.paidAt ?? o.createdAt)} · {o.reference}</span>
+                </span>
+                <span className="flex items-center gap-3"><span className="tabular-nums">{formatMoney(o.totalMinor, o.currency)}</span><StatusBadge status={o.status} /></span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={CreditCard} title="No transactions yet">
+            Receipts appear here once a payment is verified.
+          </EmptyState>
+        )}
       </Section>
     </motion.div>
   )

@@ -122,3 +122,9 @@ export function toLocalInput(iso: string | null) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 export const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null)
+
+/** Active access that ends within `days`. */
+export function expiringSoon(access: AccessView[], days: number, now = Date.now()) {
+  const limit = now + days * 86_400_000
+  return access.filter((a) => a.status === 'active' && a.expiresAt && Date.parse(a.expiresAt) < limit)
+}
