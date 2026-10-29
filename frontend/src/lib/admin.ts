@@ -51,3 +51,11 @@ export function problemText(e: unknown, fallback = 'Something went wrong.') {
   const body = (e as { body?: { detail?: string } })?.body
   return body?.detail ?? fallback
 }
+
+export interface DriveStatus { configured: boolean; accountEmail: string | null }
+export interface AdminResource {
+  id: string; name: string; mimeType: string | null; sizeBytes: number | null; lessonId: string | null
+  isPreview: boolean; status: PublishStatus; syncedAt: string | null; driveModifiedAt: string | null
+}
+export interface CourseResources { driveFolderId: string | null; driveSyncedAt: string | null; resources: AdminResource[] }
+export interface SyncResult { added: number; updated: number; archived: number; skipped: number }

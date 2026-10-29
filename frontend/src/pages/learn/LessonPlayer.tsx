@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, ArrowRight, CheckCircle2, Lock } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, Download, Lock } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
 import { AccessPrompt } from '@/components/learn/AccessPrompt'
 import { lessonIcon } from '@/components/learn/lessonIcon'
@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { FullPageSpinner, Spinner } from '@/components/ui/Spinner'
 import { api } from '@/lib/api'
-import { type CourseDetail, flatLessons, type LessonContent, lessonPath, percent, videoSource } from '@/lib/learning'
+import { type CourseDetail, flatLessons, formatBytes, type LessonContent, type LessonResource, lessonPath, percent, videoSource } from '@/lib/learning'
 import { useApi } from '@/lib/useApi'
 
 interface ProgressResponse {
@@ -48,6 +48,7 @@ export default function LessonPlayer() {
   const signedIn = status === 'signed_in'
   const [course] = useApi<CourseDetail>(`/api/courses/${encodeURIComponent(slug)}`)
   const [lesson] = useApi<LessonContent>(`/api/lessons/${encodeURIComponent(lessonId)}/content`)
+  const [resources] = useApi<LessonResource[]>(`/api/lessons/${encodeURIComponent(lessonId)}/resources`)
   // Completed on the server when the page loaded, plus what was completed here since.
   const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
@@ -109,7 +110,23 @@ export default function LessonPlayer() {
                 <div className="leading-relaxed whitespace-pre-line">{content.body}</div>
               </Card>
             )}
-            {!content.videoRef && !content.body && <p className="text-muted">This lesson has no content yet.</p>}
+            {!content.videoRef && !content.body && !resources.data?.length && <p className="text-muted">This lesson has no content yet.</p>}
+            {resources.data && resources.data.length > 0 && (
+              <Card className="p-0">
+                <h2 className="border-b border-border px-5 py-3 text-sm font-semibold">Resources</h2>
+                <ul>
+                  {resources.data.map((r) => (
+                    <li key={r.id} className="border-b border-border last:border-0">
+                      <a href={`/api/resources/${r.id}/download`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-surface-2">
+                        <Download className="size-4 text-brand-500" />
+                        <span className="flex-1">{r.name}</span>
+                        {formatBytes(r.sizeBytes) && <span className="text-xs text-muted">{formatBytes(r.sizeBytes)}</span>}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
               {prev ? (

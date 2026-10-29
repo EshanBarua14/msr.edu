@@ -34,6 +34,9 @@ public static class Startup
         services.AddScoped<AccessService>();
         services.AddScoped<EntitlementService>();
         services.AddScoped<QuizService>();
+        services.Configure<DriveOptions>(config.GetSection("GoogleDrive"));
+        services.AddSingleton<IDriveClient, GoogleDriveClient>();
+        services.AddScoped<DriveSyncService>();
         services.AddScoped<UserProvisioning>();
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
@@ -144,6 +147,7 @@ public static class Startup
         app.MapLearningEndpoints();
         app.MapAdminEndpoints();
         app.MapAdminContentEndpoints();
+        app.MapResourceEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
         // Production: serve the built React app (frontend/dist copied to wwwroot) from the same origin.

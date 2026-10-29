@@ -277,6 +277,14 @@ namespace MsrEdu.Api.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
+                    b.Property<string>("DriveFolderId")
+                        .HasColumnType("text")
+                        .HasColumnName("drive_folder_id");
+
+                    b.Property<DateTimeOffset?>("DriveSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("drive_synced_at");
+
                     b.Property<bool>("IsFree")
                         .HasColumnType("boolean")
                         .HasColumnName("is_free");
@@ -1624,6 +1632,10 @@ namespace MsrEdu.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("drive_file_id");
+
+                    b.Property<string>("DriveMimeType")
+                        .HasColumnType("text")
+                        .HasColumnName("drive_mime_type");
 
                     b.Property<DateTimeOffset?>("DriveModifiedAt")
                         .HasColumnType("timestamp with time zone")

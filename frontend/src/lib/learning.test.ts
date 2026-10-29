@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDuration, percent, videoSource } from './learning'
+import { formatBytes, formatDuration, percent, videoSource } from './learning'
 
 describe('videoSource', () => {
   it('embeds YouTube links privately', () => {
@@ -24,5 +24,14 @@ describe('helpers', () => {
     expect(formatDuration(90)).toBe('2 min')
     expect(formatDuration(3900)).toBe('1 h 5 min')
     expect(formatDuration(null)).toBeNull()
+  })
+})
+
+describe('formatBytes', () => {
+  it('formats sizes', () => {
+    expect(formatBytes(null)).toBeNull()
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(1536)).toBe('1.5 KB')
+    expect(formatBytes(25 * 1024 * 1024)).toBe('25 MB')
   })
 })

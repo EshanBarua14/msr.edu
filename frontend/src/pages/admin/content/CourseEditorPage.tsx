@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { api } from '@/lib/api'
 import { type Category, type CourseEditor, type CourseFields, type LessonRow, problemText } from '@/lib/admin'
 import { useApi } from '@/lib/useApi'
+import { CourseResourcesTab } from './CourseResourcesTab'
 import { NotFound } from '@/pages/StatusPage'
 
 function Details({ course, categories, onSaved }: { course: CourseEditor; categories: Category[]; onSaved: (c: CourseEditor) => void }) {
@@ -260,11 +261,12 @@ export default function CourseEditorPage() {
 function Editor({ initial }: { initial: CourseEditor }) {
   const [categories] = useApi<Category[]>('/api/admin/categories')
   const [course, setCourse] = useState(initial)
-  const [tab, setTab] = useState<'syllabus' | 'details' | 'quizzes'>('syllabus')
+  const [tab, setTab] = useState<'syllabus' | 'details' | 'quizzes' | 'resources'>('syllabus')
 
   const tabs = [
     { key: 'syllabus', label: `Syllabus (${course.lessons.length})` },
     { key: 'quizzes', label: `Quizzes (${course.quizzes.length})` },
+    { key: 'resources', label: 'Resources' },
     { key: 'details', label: 'Details' },
   ] as const
 
@@ -283,14 +285,14 @@ function Editor({ initial }: { initial: CourseEditor }) {
           </div>
         }
       />
-      <div role="tablist" className="mb-6 flex gap-1 rounded-full bg-surface-2 p-1 text-sm sm:w-fit">
+      <div role="tablist" className="mb-6 flex gap-1 overflow-x-auto rounded-full bg-surface-2 p-1 text-sm sm:w-fit">
         {tabs.map((t) => (
           <button
             key={t.key}
             role="tab"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-full px-4 py-1.5 font-medium transition-colors sm:flex-none ${tab === t.key ? 'bg-surface shadow' : 'text-muted hover:text-ink'}`}
+            className={`flex-1 rounded-full px-4 py-1.5 whitespace-nowrap font-medium transition-colors sm:flex-none ${tab === t.key ? 'bg-surface shadow' : 'text-muted hover:text-ink'}`}
           >
             {t.label}
           </button>
@@ -298,6 +300,7 @@ function Editor({ initial }: { initial: CourseEditor }) {
       </div>
       {tab === 'syllabus' && <Syllabus course={course} onChange={setCourse} />}
       {tab === 'quizzes' && <Quizzes course={course} />}
+      {tab === 'resources' && <CourseResourcesTab course={course} />}
       {tab === 'details' && <Details course={course} categories={categories.data ?? []} onSaved={setCourse} />}
     </>
   )

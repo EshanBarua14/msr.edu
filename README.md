@@ -60,7 +60,23 @@ dotnet user-secrets set "Auth:OwnerEmails:0" "you@gmail.com"
 
 Until Google is configured, development builds show **Development: sign in as** buttons on the login page (learner, owner, content, finance). They use `POST /api/auth/dev-login`, which the API refuses to enable outside the Development environment.
 
-### 3. Run
+### 3. Google Drive resources (optional)
+
+Course files (PDFs, Docs, Slides…) sync from Drive folders through a service account. Learners download them through the API, which checks access each time, so Drive links are never exposed.
+
+1. Google Cloud Console → enable the **Google Drive API**.
+2. IAM → Service accounts → create one → Keys → **Add key → JSON**.
+3. Store the whole JSON file as a secret (PowerShell):
+
+```powershell
+cd backend/src/MsrEdu.Api
+Get-Content C:\path\to\key.json -Raw | dotnet user-secrets set "GoogleDrive:ServiceAccountJson"
+```
+
+4. Share each course folder in Drive with the service account email (Viewer). Admin → Google Drive shows the email.
+5. Admin → Courses → a course → **Resources** → paste the folder link → **Sync from Drive**. New files arrive as drafts; attach them to a lesson and publish. Files removed from Drive are archived, not deleted. Google Docs, Sheets and Slides are delivered as PDF.
+
+### 4. Run
 
 Two terminals:
 
@@ -112,7 +128,7 @@ Copy-Item -Recurse -Force dist\* ..\backend\src\MsrEdu.Api\wwwroot\
 cd ..\backend; dotnet publish src/MsrEdu.Api -c Release -o out
 ```
 
-On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret` and `Auth__OwnerEmails__0` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
+On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountJson` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
 
 ## Security model
 
@@ -123,7 +139,8 @@ On the server, set `ConnectionStrings__Default`, `Authentication__Google__Client
 - **Entitlements** are created only by `EntitlementService.GrantForOrderAsync`. It requires a successful order with a verified transaction matching the amount and currency, locks the order row, and is idempotent, so duplicate or concurrent webhooks are safe.
 - **Database guards** apply even to pgAdmin or scripts: the payment status state machine, immutable order amounts and line snapshots, no deletes on financial rows, refunds ≤ amount paid, receipts only for verified payments, an append-only audit log, and the last owner can't be removed.
 - **Audit:** changes to roles, settings, plans, prices, discounts, orders, transactions, refunds, subscriptions and entitlements are written to `audit_logs` along with the user who made them.
-- **Secrets:** Google, payment gateway and AI credentials live in user secrets or server environment variables, never in the repo or the frontend.
+- **Course files** are streamed by the API after an access check (`/api/resources/{id}/download`); Drive file ids stay server-side.
+- **Secrets:** Google, Drive service account, payment gateway and AI credentials live in user secrets or server environment variables, never in the repo or the frontend.
 
 ## Business settings (pending confirmation)
 

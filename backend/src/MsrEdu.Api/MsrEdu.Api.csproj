@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.77.0.4301" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

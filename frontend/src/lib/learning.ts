@@ -158,3 +158,16 @@ export function videoSource(ref: string): { kind: 'embed' | 'file'; src: string 
   }
   return { kind: 'file', src: url.toString() }
 }
+
+export interface LessonResource { id: string; name: string; mimeType: string | null; sizeBytes: number | null }
+
+export function formatBytes(n: number | null) {
+  if (n === null) return null
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i++
+  }
+  return `${n < 10 && i > 0 ? n.toFixed(1) : Math.round(n)} ${units[i]}`
+}

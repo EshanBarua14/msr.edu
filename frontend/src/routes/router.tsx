@@ -30,12 +30,15 @@ const CourseEditorPage = lazy(() => import('@/pages/admin/content/CourseEditorPa
 const LessonEditorPage = lazy(() => import('@/pages/admin/content/LessonEditorPage'))
 const QuizList = lazy(() => import('@/pages/admin/content/QuizList'))
 const QuizEditorPage = lazy(() => import('@/pages/admin/content/QuizEditorPage'))
+const DrivePage = lazy(() => import('@/pages/admin/content/DrivePage'))
 
 /** Admin sections that are built; the rest show a placeholder. Detail pages share their section's roles. */
 const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNode][] }> = {
   courses: { index: s(<CourseList />), detail: [[':id', s(<CourseEditorPage />)]] },
   modules: { index: <Navigate to="/admin/courses" replace />, detail: [['/admin/lessons/:id', s(<LessonEditorPage />)]] },
   quizzes: { index: s(<QuizList />), detail: [[':id', s(<QuizEditorPage />)]] },
+  resources: { index: <Navigate to="/admin/courses" replace /> },
+  drive: { index: s(<DrivePage />) },
 }
 
 const learnerPlaceholders = [
