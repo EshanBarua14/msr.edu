@@ -53,3 +53,62 @@ jobs:
           dotnet ef migrations script --idempotent -p src/MsrEdu.Api --no-build -o database/schema.sql
           git diff --exit-code -- database/schema.sql
       - run: dotnet test --no-build
+
+  e2e:
+    # Browser acceptance tests against the API serving the built frontend, as in production.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__Default: Host=localhost;Port=5432;Database=msr_e2e;Username=postgres;Password=postgres
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://localhost:5080
+      RateLimits__SignInPerMinute: '1000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build the frontend into the API
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../backend/src/MsrEdu.Api/wwwroot
+          cp -r dist/* ../backend/src/MsrEdu.Api/wwwroot/
+      - name: Build, migrate and start the API
+        working-directory: backend
+        run: |
+          dotnet tool restore
+          dotnet build src/MsrEdu.Api
+          dotnet ef database update -p src/MsrEdu.Api --no-build
+          nohup dotnet run --project src/MsrEdu.Api --no-build --no-launch-profile > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5080/api/health && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: Run acceptance tests
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            backend/api.log
