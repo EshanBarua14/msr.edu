@@ -1,0 +1,20 @@
+drop trigger if exists audit_logs_append_only on audit_logs;
+drop trigger if exists orders_transition on orders;
+drop trigger if exists orders_immutable on orders;
+drop trigger if exists orders_no_delete on orders;
+drop trigger if exists order_items_immutable on order_items;
+drop trigger if exists payment_transactions_transition on payment_transactions;
+drop trigger if exists payment_transactions_immutable on payment_transactions;
+drop trigger if exists payment_transactions_no_delete on payment_transactions;
+drop trigger if exists payment_events_immutable on payment_events;
+drop trigger if exists payment_events_no_delete on payment_events;
+drop trigger if exists refunds_total on refunds;
+drop trigger if exists refunds_no_delete on refunds;
+drop trigger if exists receipts_verified on receipts;
+drop trigger if exists receipts_immutable on receipts;
+drop trigger if exists receipts_no_delete on receipts;
+drop trigger if exists entitlements_immutable on entitlements;
+drop trigger if exists entitlements_no_delete on entitlements;
+drop trigger if exists user_roles_keep_owner on user_roles;
+drop function if exists prevent_mutation, guard_immutable_columns, payment_transition_allowed, enforce_payment_transition,
+  check_refund_total, check_receipt_verified, keep_one_owner;
