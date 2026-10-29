@@ -13,7 +13,9 @@ public static class CatalogEndpoints
     public record QuizOutline(Guid Id, string Title, Guid? LessonId, int QuestionCount, bool IsPreview, bool Locked);
     public record CourseDetail(
         CourseSummary Course, string? Description, bool HasAccess, IReadOnlyList<ModuleOutline> Modules,
-        IReadOnlyList<QuizOutline> Quizzes, IReadOnlyList<Guid> CompletedLessonIds);
+        IReadOnlyList<QuizOutline> Quizzes, IReadOnlyList<Guid> CompletedLessonIds, PriceInfo? Price);
+    /// <summary>The course's own price; <see cref="PriceMinor"/> already includes any running promotion.</summary>
+    public record PriceInfo(Guid ProductId, long PriceMinor, long RegularMinor, string Currency, int? AccessDays);
     public record LessonContentResponse(Guid LessonId, string Title, string? Body, string? VideoRef);
 
     public static void MapCatalogEndpoints(this IEndpointRouteBuilder app)
@@ -32,7 +34,7 @@ public static class CatalogEndpoints
                 .ToListAsync());
 
         // Syllabus is public for published courses; each lesson says whether the viewer can open it.
-        g.MapGet("/courses/{slug}", async (string slug, AppDbContext db, ICurrentUser user, AccessService access) =>
+        g.MapGet("/courses/{slug}", async (string slug, AppDbContext db, ICurrentUser user, AccessService access, TimeProvider clock) =>
         {
             var course = await db.Courses.AsNoTracking().Include(c => c.Category)
                 .FirstOrDefaultAsync(c => c.Slug == slug && (c.Status == PublishStatus.Published || user.IsStaff));
@@ -67,9 +69,14 @@ public static class CatalogEndpoints
                     .Select(p => p.LessonId).ToListAsync()
                 : [];
 
+            var product = course.IsFree ? null : await db.Products.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.CourseId == course.Id && p.Status == SaleStatus.Active);
+            var price = product is null ? null
+                : new PriceInfo(product.Id, product.CurrentPriceMinor(clock.GetUtcNow()), product.PriceMinor, product.Currency, product.AccessDays);
+
             return Results.Ok(new CourseDetail(
                 new CourseSummary(course.Id, course.Slug, course.Title, course.Summary, course.CoverUrl, course.IsFree, course.Category?.Name),
-                course.Description, hasAccess, outline, quizzes, completed));
+                course.Description, hasAccess, outline, quizzes, completed, price));
         });
 
         // Protected lesson body. 404 (not 403) for hidden items so drafts are not revealed.
