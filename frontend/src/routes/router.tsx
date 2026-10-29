@@ -31,6 +31,16 @@ const LessonEditorPage = lazy(() => import('@/pages/admin/content/LessonEditorPa
 const QuizList = lazy(() => import('@/pages/admin/content/QuizList'))
 const QuizEditorPage = lazy(() => import('@/pages/admin/content/QuizEditorPage'))
 const DrivePage = lazy(() => import('@/pages/admin/content/DrivePage'))
+const SandboxPay = lazy(() => import('@/pages/checkout/SandboxPay'))
+const CheckoutReturn = lazy(() => import('@/pages/checkout/CheckoutReturn'))
+const Membership = lazy(() => import('@/pages/app/Membership'))
+const Transactions = lazy(() => import('@/pages/app/Transactions'))
+const ReceiptPage = lazy(() => import('@/pages/app/ReceiptPage'))
+const PricingPage = lazy(() => import('@/pages/admin/finance/PricingPage'))
+const PlansPage = lazy(() => import('@/pages/admin/finance/PlansPage'))
+const OrdersPage = lazy(() => import('@/pages/admin/finance/OrdersPage'))
+const OrderDetailPage = lazy(() => import('@/pages/admin/finance/OrderDetailPage'))
+const EntitlementsPage = lazy(() => import('@/pages/admin/finance/EntitlementsPage'))
 
 /** Admin sections that are built; the rest show a placeholder. Detail pages share their section's roles. */
 const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNode][] }> = {
@@ -39,13 +49,14 @@ const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNo
   quizzes: { index: s(<QuizList />), detail: [[':id', s(<QuizEditorPage />)]] },
   resources: { index: <Navigate to="/admin/courses" replace /> },
   drive: { index: s(<DrivePage />) },
+  pricing: { index: s(<PricingPage />) },
+  plans: { index: s(<PlansPage />) },
+  orders: { index: s(<OrdersPage />), detail: [[':id', s(<OrderDetailPage />)]] },
+  pending: { index: <Navigate to="/admin/orders?status=pending,processing" replace /> },
+  refunds: { index: <Navigate to="/admin/orders?status=refund_pending,partially_refunded,refunded" replace /> },
+  receipts: { index: <Navigate to="/admin/orders?status=successful,partially_refunded,refunded" replace /> },
+  entitlements: { index: s(<EntitlementsPage />) },
 }
-
-const learnerPlaceholders = [
-  { path: 'subscription', title: 'Membership', phase: 'Phase 5' },
-  { path: 'transactions', title: 'Transactions', phase: 'Phase 5' },
-  { path: 'receipts', title: 'Receipts', phase: 'Phase 6' },
-]
 
 export const router = createBrowserRouter([
   {
@@ -58,6 +69,14 @@ export const router = createBrowserRouter([
       { path: 'courses/:slug/lessons/:lessonId', element: s(<LessonPlayer />) },
       { path: 'courses/:slug/quizzes/:quizId', element: <RequireAuth />, children: [{ index: true, element: s(<QuizPage />) }] },
       { path: 'pricing', element: s(<Pricing />) },
+      {
+        path: 'checkout',
+        element: <RequireAuth />,
+        children: [
+          { path: 'sandbox/:txnId', element: s(<SandboxPay />) },
+          { path: 'return/:reference', element: s(<CheckoutReturn />) },
+        ],
+      },
       ...['terms', 'privacy', 'refunds'].map((path) => ({
         path,
         element: (
@@ -83,7 +102,10 @@ export const router = createBrowserRouter([
           { path: 'courses', element: s(<MyCourses />) },
           { path: 'quizzes', element: s(<QuizResults />) },
           { path: 'quizzes/:attemptId', element: s(<AttemptPage />) },
-          ...learnerPlaceholders.map((p) => ({ path: p.path, element: <Placeholder title={p.title} phase={p.phase} /> })),
+          { path: 'subscription', element: s(<Membership />) },
+          { path: 'transactions', element: s(<Transactions />) },
+          { path: 'receipts', element: s(<Transactions receiptsOnly />) },
+          { path: 'receipts/:number', element: s(<ReceiptPage />) },
         ],
       },
       {
