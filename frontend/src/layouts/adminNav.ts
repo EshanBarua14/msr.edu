@@ -1,6 +1,6 @@
 import {
   AlertTriangle, BadgePercent, BarChart3, BookOpen, Boxes, Clock, CreditCard, FileClock, FolderOpen,
-  FolderTree, Gauge, Home, KeyRound, LayoutDashboard, ListChecks, Megaphone, Receipt, RotateCcw, Settings, Tag,
+  FolderTree, Gauge, Home, KeyRound, LayoutDashboard, ListChecks, Megaphone, Receipt, RotateCcw, Settings, ShieldAlert, Tag,
   Ticket, Users,
 } from 'lucide-react'
 import type { Role } from '@/auth/roles'
@@ -48,6 +48,7 @@ export const adminNav: AdminNavSection[] = [
       { to: '/admin/orders', label: 'Orders & transactions', icon: CreditCard, roles: [...finance, ...support] },
       { to: '/admin/pending', label: 'Pending payments', icon: Clock, roles: finance },
       { to: '/admin/refunds', label: 'Refunds & disputes', icon: RotateCcw, roles: finance },
+      { to: '/admin/reconciliation', label: 'Payment issues', icon: ShieldAlert, roles: finance },
       { to: '/admin/entitlements', label: 'Learner entitlements', icon: KeyRound, roles: [...finance, ...support] },
       { to: '/admin/receipts', label: 'Receipts & invoices', icon: Receipt, roles: [...finance, ...support] },
       { to: '/admin/reports', label: 'Revenue reports', icon: BarChart3, roles: finance },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, type Variants } from 'motion/react'
 import { AlertTriangle, ArrowDownLeft, Banknote, CheckCircle2, Circle, Clock, CreditCard, RotateCcw, Ticket, XCircle } from 'lucide-react'
 import { useAuth } from '@/auth/AuthProvider'
@@ -7,6 +8,8 @@ import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { api } from '@/lib/api'
 import { businessDefaults, formatMoney } from '@/lib/business'
+import type { SetupStatus } from '@/lib/ops'
+import { useApi } from '@/lib/useApi'
 
 const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } }
 const item: Variants = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }
@@ -31,6 +34,8 @@ export default function AdminOverview() {
   const showFinance = hasAnyRole(roles, ['finance_manager'])
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState(false)
+  const [setupState] = useApi<SetupStatus>('/api/admin/setup')
+  const isOwner = roles.includes('owner_admin')
 
   useEffect(() => {
     if (!showFinance) return
@@ -50,15 +55,21 @@ export default function AdminOverview() {
     { label: 'Refunds awaiting action', value: count(data?.refundsAwaitingAction), icon: RotateCcw },
   ]
 
+  const status = setupState.data
   const setup = [
-    { label: 'API connected to PostgreSQL', done: providers !== null },
-    { label: 'Google sign-in configured on the API', done: providers?.google ?? false },
+    { label: 'API connected to PostgreSQL', done: status?.database ?? providers !== null },
+    { label: 'Google sign-in configured on the API', done: status?.googleSignIn ?? providers?.google ?? false },
     {
       label: `Confirm business defaults: ${businessDefaults.currency}, ${businessDefaults.subscriptionRenewal} renewal, ${businessDefaults.courseAccess} course access`,
-      done: false,
+      done: status?.defaultsConfirmed ?? false,
+      to: isOwner ? '/admin/settings' : undefined,
     },
-    { label: 'Choose and verify a payment gateway', done: false },
-    { label: 'Connect Google Drive for course resources', done: false },
+    {
+      label: status?.gatewayIsSandbox ? 'Choose a real payment gateway (test payments only for now)' : 'Choose and verify a payment gateway',
+      done: !!status?.gateway && !status.gatewayIsSandbox,
+    },
+    { label: 'Connect Google Drive for course resources', done: status?.drive ?? false },
+    { label: 'Add an AI key for quiz question drafts (optional)', done: status?.ai ?? false },
   ]
 
   return (
@@ -90,7 +101,11 @@ export default function AdminOverview() {
                 {setup.map((s) => (
                   <li key={s.label} className="flex items-start gap-3 text-sm">
                     {s.done ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" /> : <Circle className="mt-0.5 size-4 shrink-0 text-muted" />}
-                    <span className={s.done ? 'text-muted line-through' : ''}>{s.label}</span>
+                    {s.to && !s.done ? (
+                      <Link to={s.to} className="text-brand-600 hover:underline">{s.label}</Link>
+                    ) : (
+                      <span className={s.done ? 'text-muted line-through' : ''}>{s.label}</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -101,9 +116,13 @@ export default function AdminOverview() {
               <h2 className="font-semibold">Reconciliation</h2>
               <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm text-muted">
                 <AlertTriangle className="size-4 shrink-0" />
-                {data && data.openReconciliation > 0
-                  ? `${data.openReconciliation} unresolved payment discrepancies.`
-                  : 'No unresolved payment discrepancies.'}
+                {data && data.openReconciliation > 0 ? (
+                  <Link to="/admin/reconciliation" className="text-warning hover:underline">
+                    {data.openReconciliation} payment {data.openReconciliation === 1 ? 'issue needs' : 'issues need'} attention
+                  </Link>
+                ) : (
+                  'No unresolved payment discrepancies.'
+                )}
               </div>
             </Card>
           </motion.div>
