@@ -143,6 +143,7 @@ public static class Startup
         app.MapCatalogEndpoints();
         app.MapLearningEndpoints();
         app.MapAdminEndpoints();
+        app.MapAdminContentEndpoints();
         app.Map("/api/{**rest}", () => Results.NotFound());
 
         // Production: serve the built React app (frontend/dist copied to wwwroot) from the same origin.

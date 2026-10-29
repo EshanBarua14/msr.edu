@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { RequireAuth, RequireRole } from '@/auth/guards'
 import { STAFF_ROLES } from '@/auth/roles'
 import { FullPageSpinner } from '@/components/ui/Spinner'
@@ -10,6 +10,8 @@ import { PublicLayout } from '@/layouts/PublicLayout'
 import Landing from '@/pages/Landing'
 import Placeholder from '@/pages/Placeholder'
 import { Forbidden, NotFound } from '@/pages/StatusPage'
+
+const s = (node: ReactNode) => <Suspense fallback={<FullPageSpinner />}>{node}</Suspense>
 
 const Login = lazy(() => import('@/pages/Login'))
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'))
@@ -23,8 +25,18 @@ const MyCourses = lazy(() => import('@/pages/app/MyCourses'))
 const QuizResults = lazy(() => import('@/pages/app/QuizResults'))
 const AttemptPage = lazy(() => import('@/pages/app/AttemptPage'))
 const AdminOverview = lazy(() => import('@/pages/admin/Overview'))
+const CourseList = lazy(() => import('@/pages/admin/content/CourseList'))
+const CourseEditorPage = lazy(() => import('@/pages/admin/content/CourseEditorPage'))
+const LessonEditorPage = lazy(() => import('@/pages/admin/content/LessonEditorPage'))
+const QuizList = lazy(() => import('@/pages/admin/content/QuizList'))
+const QuizEditorPage = lazy(() => import('@/pages/admin/content/QuizEditorPage'))
 
-const s = (node: ReactNode) => <Suspense fallback={<FullPageSpinner />}>{node}</Suspense>
+/** Admin sections that are built; the rest show a placeholder. Detail pages share their section's roles. */
+const adminScreens: Record<string, { index: ReactNode; detail?: [string, ReactNode][] }> = {
+  courses: { index: s(<CourseList />), detail: [[':id', s(<CourseEditorPage />)]] },
+  modules: { index: <Navigate to="/admin/courses" replace />, detail: [['/admin/lessons/:id', s(<LessonEditorPage />)]] },
+  quizzes: { index: s(<QuizList />), detail: [[':id', s(<QuizEditorPage />)]] },
+}
 
 const learnerPlaceholders = [
   { path: 'subscription', title: 'Membership', phase: 'Phase 5' },
@@ -79,11 +91,20 @@ export const router = createBrowserRouter([
             element: <AdminLayout />,
             children: [
               { index: true, element: s(<AdminOverview />) },
-              ...adminPages.map((p) => ({
-                path: p.to.replace('/admin/', ''),
-                element: <RequireRole anyOf={p.roles} />,
-                children: [{ index: true, element: <Placeholder title={p.label} /> }],
-              })),
+              ...adminPages.map((p) => {
+                const section = p.to.replace('/admin/', '')
+                const screen = adminScreens[section]
+                return {
+                  element: <RequireRole anyOf={p.roles} />,
+                  children: [
+                    { path: section, element: screen?.index ?? <Placeholder title={p.label} /> },
+                    ...(screen?.detail ?? []).map(([path, element]) => ({
+                      path: path.startsWith('/') ? path.replace('/admin/', '') : `${section}/${path}`,
+                      element,
+                    })),
+                  ],
+                }
+              }),
             ],
           },
         ],
