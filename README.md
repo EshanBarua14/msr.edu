@@ -66,11 +66,11 @@ Course files (PDFs, Docs, Slides…) sync from Drive folders through a service a
 
 1. Google Cloud Console → enable the **Google Drive API**.
 2. IAM → Service accounts → create one → Keys → **Add key → JSON**.
-3. Store the whole JSON file as a secret (PowerShell):
+3. Save the key **outside the repo** (for example `C:\secrets\msr-drive.json`) and point the API at it:
 
 ```powershell
 cd backend/src/MsrEdu.Api
-Get-Content C:\path\to\key.json -Raw | dotnet user-secrets set "GoogleDrive:ServiceAccountJson"
+dotnet user-secrets set "GoogleDrive:ServiceAccountKeyPath" "C:\secrets\msr-drive.json"
 ```
 
 4. Share each course folder in Drive with the service account email (Viewer). Admin → Google Drive shows the email.
@@ -128,7 +128,7 @@ Copy-Item -Recurse -Force dist\* ..\backend\src\MsrEdu.Api\wwwroot\
 cd ..\backend; dotnet publish src/MsrEdu.Api -c Release -o out
 ```
 
-On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountJson` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
+On the server, set `ConnectionStrings__Default`, `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret`, `Auth__OwnerEmails__0` and (optionally) `GoogleDrive__ServiceAccountKeyPath` or `GoogleDrive__ServiceAccountJson` as environment variables. Behind a reverse proxy, forward `X-Forwarded-Proto` and `X-Forwarded-Host`.
 
 ## Security model
 

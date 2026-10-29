@@ -32,7 +32,7 @@ export default function DrivePage() {
                 <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted">
                   <li>In Google Cloud Console, enable the Google Drive API.</li>
                   <li>Create a service account and download a JSON key.</li>
-                  <li>On the API server, set the key as the secret <span className="font-mono">GoogleDrive:ServiceAccountJson</span> (see README) and restart.</li>
+                  <li>Save the key outside the repo and set <span className="font-mono">GoogleDrive:ServiceAccountKeyPath</span> to its path (see README), then restart the API.</li>
                 </ol>
               </div>
             </div>

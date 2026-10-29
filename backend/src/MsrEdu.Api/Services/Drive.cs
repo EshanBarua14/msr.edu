@@ -10,11 +10,18 @@ namespace MsrEdu.Api.Services;
 
 /// <summary>
 /// Google Drive access through a service account. Share each course folder with the account's email (Viewer).
-/// The key is a secret: set GoogleDrive:ServiceAccountJson in user secrets or an environment variable.
+/// The key is a secret: point GoogleDrive:ServiceAccountKeyPath at the JSON key file (kept outside the repo),
+/// or put the JSON itself in GoogleDrive:ServiceAccountJson (handy for server environment variables).
 /// </summary>
 public class DriveOptions
 {
     public string? ServiceAccountJson { get; set; }
+    public string? ServiceAccountKeyPath { get; set; }
+
+    public string? ResolveJson() =>
+        !string.IsNullOrWhiteSpace(ServiceAccountJson) ? ServiceAccountJson
+        : !string.IsNullOrWhiteSpace(ServiceAccountKeyPath) ? File.ReadAllText(ServiceAccountKeyPath)
+        : null;
 }
 
 public record DriveFile(string Id, string Name, string MimeType, long? Size, DateTimeOffset? ModifiedAt, string? Md5);
@@ -38,8 +45,8 @@ public sealed class GoogleDriveClient : IDriveClient, IDisposable
 
     public GoogleDriveClient(IOptions<DriveOptions> options)
     {
-        if (string.IsNullOrWhiteSpace(options.Value.ServiceAccountJson)) return;
-        var credential = CredentialFactory.FromJson<ServiceAccountCredential>(options.Value.ServiceAccountJson);
+        if (options.Value.ResolveJson() is not { } json) return;
+        var credential = CredentialFactory.FromJson<ServiceAccountCredential>(json);
         AccountEmail = credential.Id;
         _service = new DriveService(new BaseClientService.Initializer
         {
