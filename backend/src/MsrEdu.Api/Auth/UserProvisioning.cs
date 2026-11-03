@@ -9,7 +9,26 @@ namespace MsrEdu.Api.Auth;
 /// <summary>Creates or updates the local user for a Google sign-in.</summary>
 public class UserProvisioning(AppDbContext db, IOptions<MsrAuthOptions> options, TimeProvider clock)
 {
+    /// <summary>
+    /// Two first-time sign-ins for the same person can race (two tabs); the loser hits the unique email index.
+    /// Retrying once finds the row the winner created.
+    /// </summary>
     public async Task<User> UpsertGoogleUserAsync(string subject, string email, string? name, string? avatar, CancellationToken ct = default)
+    {
+        try
+        {
+            return await UpsertOnceAsync(subject, email, name, avatar, ct);
+        }
+        catch (DbUpdateException e) when (IsUniqueViolation(e))
+        {
+            db.ChangeTracker.Clear();
+            return await UpsertOnceAsync(subject, email, name, avatar, ct);
+        }
+    }
+
+    public static bool IsUniqueViolation(DbUpdateException e) => e.InnerException is Npgsql.PostgresException { SqlState: "23505" };
+
+    private async Task<User> UpsertOnceAsync(string subject, string email, string? name, string? avatar, CancellationToken ct)
     {
         email = email.Trim().ToLowerInvariant();
         var user = await db.Users.Include(u => u.Roles)

@@ -56,17 +56,29 @@ public static class AuthEndpoints
         {
             if (!opts.Value.EnableDevLogin) return Results.NotFound();
             var email = req.Email.Trim().ToLowerInvariant();
-            var user = await db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == email);
-            if (user is null)
+            async Task<Data.Entities.User> UpsertAsync()
             {
-                user = new Data.Entities.User { Email = email, FullName = email.Split('@')[0] };
-                db.Users.Add(user);
+                var user = await db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == email);
+                if (user is null)
+                {
+                    user = new Data.Entities.User { Email = email, FullName = email.Split('@')[0] };
+                    db.Users.Add(user);
+                }
+                var wanted = req.Roles.Append(RoleKeys.Learner).Intersect([.. RoleKeys.Staff, RoleKeys.Learner]).ToHashSet();
+                user.Roles.RemoveAll(r => !wanted.Contains(r.RoleKey) && r.RoleKey != RoleKeys.OwnerAdmin);
+                foreach (var role in wanted.Where(w => user.Roles.All(r => r.RoleKey != w)))
+                    user.Roles.Add(new Data.Entities.UserRole { RoleKey = role });
+                await db.SaveChangesAsync();
+                return user;
             }
-            var wanted = req.Roles.Append(RoleKeys.Learner).Intersect([.. RoleKeys.Staff, RoleKeys.Learner]).ToHashSet();
-            user.Roles.RemoveAll(r => !wanted.Contains(r.RoleKey) && r.RoleKey != RoleKeys.OwnerAdmin);
-            foreach (var role in wanted.Where(w => user.Roles.All(r => r.RoleKey != w)))
-                user.Roles.Add(new Data.Entities.UserRole { RoleKey = role });
-            await db.SaveChangesAsync();
+            Data.Entities.User user;
+            try { user = await UpsertAsync(); }
+            catch (DbUpdateException e) when (UserProvisioning.IsUniqueViolation(e))
+            {
+                // Parallel sign-ins as the same new user: the other request created it first.
+                db.ChangeTracker.Clear();
+                user = await UpsertAsync();
+            }
             await ctx.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 UserProvisioning.PrincipalFor(user, CookieAuthenticationDefaults.AuthenticationScheme));
             return Results.NoContent();

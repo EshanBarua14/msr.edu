@@ -33,3 +33,7 @@ obj/
 *.user
 .vs/
 backend/src/MsrEdu.Api/wwwroot/
+
+# Playwright acceptance tests
+e2e/test-results/
+e2e/playwright-report/

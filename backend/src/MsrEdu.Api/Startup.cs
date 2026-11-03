@@ -24,6 +24,7 @@ public static class Startup
             ?? throw new InvalidOperationException("ConnectionStrings:Default is not set (see backend/README).");
 
         services.AddHttpContextAccessor();
+        services.AddMsrRateLimits(config);
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
         services.AddScoped<AuditInterceptor>();
@@ -128,6 +129,7 @@ public static class Startup
     {
         app.UseForwardedHeaders();
         app.UseExceptionHandler();
+        app.UseSecurityHeaders(app.Environment.IsProduction());
         app.UseStatusCodePages();
 
         // CSRF: state-changing API calls must carry a custom header, which browsers
@@ -149,6 +151,7 @@ public static class Startup
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
 
         app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
         app.MapAuthEndpoints();

@@ -122,7 +122,20 @@ $env:MSR_TEST_DB = "Host=localhost;Port=5432;Username=postgres;Password=postgres
 dotnet test
 ```
 
-CI runs both on every pull request. It also checks that migrations match the model and that `backend/database/schema.sql` is current.
+### Acceptance tests (browser)
+
+`e2e/` drives a real browser (desktop and a phone-sized screen) through checkout, learning, refunds and every admin screen, failing on any page error or Content-Security-Policy violation. They run against the API serving the built frontend, in Development mode (dev sign-in and the sandbox gateway):
+
+```powershell
+cd frontend; npm run build; Copy-Item -Recurse -Force dist\* ..\backend\src\MsrEdu.Api\wwwroot\
+cd ..\backend\src\MsrEdu.Api; $env:RateLimits__SignInPerMinute = "1000"; dotnet run   # serves http://localhost:5080
+# second terminal
+cd e2e; npm ci; npx playwright install chromium; npx playwright test
+```
+
+Use a throwaway database for this: the tests create courses, orders and users.
+
+CI runs the frontend, backend and acceptance tests on every pull request. It also checks that migrations match the model and that `backend/database/schema.sql` is current.
 
 ## Database changes
 
@@ -157,6 +170,8 @@ On the server, set `ConnectionStrings__Default`, `Authentication__Google__Client
 - **Database guards** apply even to pgAdmin or scripts: the payment status state machine, immutable order amounts and line snapshots, no deletes on financial rows, refunds ≤ amount paid, receipts only for verified payments, an append-only audit log, and the last owner can't be removed.
 - **Audit:** changes to roles, settings, plans, prices, discounts, orders, transactions, refunds, subscriptions and entitlements are written to `audit_logs` along with the user who made them.
 - **Payments:** checkout prices come from the database, never the browser, and each order keeps a frozen snapshot of what was sold. Access is granted only from an authenticated webhook (`/api/webhooks/{provider}`) whose amount and currency match the transaction; returning from the gateway proves nothing. Each provider event is processed once under a row lock. Amount mismatches and payments that arrive after an order was closed are recorded for reconciliation instead of granting access. A full refund applies `refund.access_policy`; partial refunds keep access.
+- **Rate limits** (per minute, `RateLimits:*` settings): checkout 10 per account, sign-in 20 per IP, webhooks 300 per IP, sandbox payments 20 per account; over the limit returns 429. Behind a reverse proxy the client IP comes from `X-Forwarded-For`, so put the API behind a proxy you control.
+- **Browser headers:** `nosniff`, `X-Frame-Options: DENY`, a strict referrer policy and, on the web app, a Content-Security-Policy that only allows this site, Google Fonts, https images and video, and the YouTube and Drive players. HSTS in production.
 - **Course files** are streamed by the API after an access check (`/api/resources/{id}/download`); Drive file ids stay server-side.
 - **Secrets:** Google, Drive service account, payment gateway and AI credentials live in user secrets or server environment variables, never in the repo or the frontend.
 
